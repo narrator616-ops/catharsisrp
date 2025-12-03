@@ -6,4 +6,7 @@ export default defineConfig({
   plugins: [react()],
   // ВАЖНО: Замените 'rpg-world-map' на название вашего репозитория на GitHub!
   base: '/catharsisrp/', 
+  build: {
+    chunkSizeWarningLimit: 1600,
+  }
 });

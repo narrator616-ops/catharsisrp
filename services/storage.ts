@@ -1,6 +1,6 @@
 import { db, storage } from './firebase';
-import { doc, onSnapshot, setDoc, updateDoc, arrayUnion, arrayRemove, getDoc } from 'firebase/firestore';
-import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { doc, onSnapshot, setDoc, updateDoc, arrayUnion, getDoc, Firestore } from 'firebase/firestore';
+import { ref, uploadBytes, getDownloadURL, FirebaseStorage } from 'firebase/storage';
 import { MapData, LocationMarker } from '../types';
 
 const MAP_DOC_ID = 'main_rpg_map';
@@ -10,7 +10,9 @@ const COLLECTION_NAME = 'maps';
 
 // Subscribe to real-time updates
 export const subscribeToMapData = (callback: (data: MapData) => void) => {
-  const docRef = doc(db, COLLECTION_NAME, MAP_DOC_ID);
+  // Cast db to Firestore to satisfy TypeScript. 
+  // App.tsx guarantees this is only called when config is valid.
+  const docRef = doc(db as Firestore, COLLECTION_NAME, MAP_DOC_ID);
   
   return onSnapshot(docRef, (docSnap) => {
     if (docSnap.exists()) {
@@ -28,7 +30,7 @@ export const subscribeToMapData = (callback: (data: MapData) => void) => {
 
 // Add a new marker
 export const addMarkerToDb = async (marker: LocationMarker) => {
-  const docRef = doc(db, COLLECTION_NAME, MAP_DOC_ID);
+  const docRef = doc(db as Firestore, COLLECTION_NAME, MAP_DOC_ID);
   await updateDoc(docRef, {
     markers: arrayUnion(marker)
   });
@@ -36,7 +38,7 @@ export const addMarkerToDb = async (marker: LocationMarker) => {
 
 // Remove a marker
 export const removeMarkerFromDb = async (markerId: string) => {
-  const docRef = doc(db, COLLECTION_NAME, MAP_DOC_ID);
+  const docRef = doc(db as Firestore, COLLECTION_NAME, MAP_DOC_ID);
   // Firestore arrayRemove requires the exact object value, which is hard to track.
   // Instead, we read, filter, and write back. Safe for low concurrency.
   const snap = await getDoc(docRef);
@@ -49,7 +51,7 @@ export const removeMarkerFromDb = async (markerId: string) => {
 
 // Update background map
 export const updateMapBackgroundInDb = async (url: string) => {
-  const docRef = doc(db, COLLECTION_NAME, MAP_DOC_ID);
+  const docRef = doc(db as Firestore, COLLECTION_NAME, MAP_DOC_ID);
   await setDoc(docRef, { backgroundImage: url }, { merge: true });
 };
 
@@ -58,7 +60,7 @@ export const updateMapBackgroundInDb = async (url: string) => {
 // Upload a file to Firebase Storage and return the URL
 export const uploadFileToStorage = async (file: File, path: string): Promise<string> => {
   try {
-    const storageRef = ref(storage, `${path}/${Date.now()}_${file.name}`);
+    const storageRef = ref(storage as FirebaseStorage, `${path}/${Date.now()}_${file.name}`);
     const snapshot = await uploadBytes(storageRef, file);
     const downloadURL = await getDownloadURL(snapshot.ref);
     return downloadURL;

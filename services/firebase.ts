@@ -3,12 +3,11 @@ import { getFirestore } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
 
 // Helper to safely access environment variables in Vite
-const getEnv = (key: string) => {
-  // Check if import.meta.env exists (Vite environment)
-  if (typeof import.meta !== 'undefined' && import.meta.env) {
-    return import.meta.env[key];
+const getEnv = (key: string): string => {
+  if (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env[key]) {
+    return String(import.meta.env[key]).trim();
   }
-  return undefined;
+  return "";
 };
 
 // Your web app's Firebase configuration
@@ -21,15 +20,20 @@ const firebaseConfig = {
   appId: getEnv('VITE_FIREBASE_APP_ID')
 };
 
-// Initialize Firebase only if config is present (prevents crash on load if env missing)
-let app;
-try {
-  app = initializeApp(firebaseConfig);
-} catch (e) {
-  console.warn("Firebase initialization failed. Check your .env file.");
-  // Create a dummy app/db to prevent immediate crash, though functionality will break
-  app = initializeApp({ apiKey: "dummy", projectId: "dummy" }, "dummyApp"); 
+// Validate config to help user debug
+const missingKeys = Object.entries(firebaseConfig)
+  .filter(([_, value]) => !value)
+  .map(([key]) => key);
+
+if (missingKeys.length > 0) {
+  console.error("Missing Firebase Configuration Keys in .env file:", missingKeys.join(", "));
+  console.error("Please ensure your .env file exists and contains VITE_FIREBASE_STORAGE_BUCKET and others.");
 }
 
+// Initialize Firebase
+// We do NOT use a try-catch with a dummy fallback here, 
+// because a dummy app without a storage bucket causes confusing "No default bucket found" errors later.
+// It is better to let it throw or fail explicitly if config is wrong.
+export const app = initializeApp(firebaseConfig);
 export const db = getFirestore(app);
 export const storage = getStorage(app);

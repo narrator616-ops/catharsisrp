@@ -9,7 +9,7 @@ const COLLECTION_NAME = 'maps';
 // -- Database Operations --
 
 // Subscribe to real-time updates
-export const subscribeToMapData = (callback: (data: MapData) => void) => {
+export const subscribeToMapData = (callback: (data: MapData) => void, onError?: (error: any) => void) => {
   // Cast db to Firestore to satisfy TypeScript. 
   // App.tsx guarantees this is only called when config is valid.
   const docRef = doc(db as Firestore, COLLECTION_NAME, MAP_DOC_ID);
@@ -20,11 +20,14 @@ export const subscribeToMapData = (callback: (data: MapData) => void) => {
     } else {
       // Create initial document if it doesn't exist
       const initialData: MapData = { backgroundImage: null, markers: [] };
-      setDoc(docRef, initialData);
+      setDoc(docRef, initialData).catch(err => {
+         if (onError) onError(err);
+      });
       callback(initialData);
     }
   }, (error) => {
     console.error("Error fetching map data:", error);
+    if (onError) onError(error);
   });
 };
 

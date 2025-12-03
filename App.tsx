@@ -20,6 +20,7 @@ const generateId = () => Math.random().toString(36).substr(2, 9) + Date.now().to
 const App: React.FC = () => {
   const [mapData, setMapData] = useState<MapData>({ backgroundImage: null, markers: [] });
   const [isLoading, setIsLoading] = useState(true);
+  const [permissionError, setPermissionError] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   const [selectedMarker, setSelectedMarker] = useState<LocationMarker | null>(null);
   const [isSidebarOpen, setSidebarOpen] = useState(false);
@@ -39,15 +40,8 @@ const App: React.FC = () => {
             The application cannot connect to the database because the API keys are missing.
           </p>
           <div className="bg-black/40 p-4 rounded text-left text-xs font-mono text-rpg-muted mb-6 overflow-x-auto">
-            <p className="mb-2 text-white">Create a file named <span className="text-yellow-400">.env</span> in the project root with your Firebase keys:</p>
-            <pre>
-VITE_FIREBASE_API_KEY=...
-VITE_FIREBASE_AUTH_DOMAIN=...
-VITE_FIREBASE_PROJECT_ID=...
-VITE_FIREBASE_STORAGE_BUCKET=...
-            </pre>
+            <p className="mb-2 text-white">Edit <span className="text-yellow-400">services/firebase.ts</span> and add your keys.</p>
           </div>
-          <p className="text-sm text-rpg-muted">Please check the console for exact missing keys.</p>
         </div>
       </div>
     );
@@ -57,10 +51,20 @@ VITE_FIREBASE_STORAGE_BUCKET=...
   useEffect(() => {
     if (!isFirebaseConfigured) return;
 
-    const unsubscribe = subscribeToMapData((data) => {
-      setMapData(data);
-      setIsLoading(false);
-    });
+    const unsubscribe = subscribeToMapData(
+      (data) => {
+        setMapData(data);
+        setIsLoading(false);
+        setPermissionError(false);
+      },
+      (error) => {
+        // Check for permission denied error
+        if (error?.code === 'permission-denied' || error?.message?.includes('Missing or insufficient permissions')) {
+          setPermissionError(true);
+          setIsLoading(false);
+        }
+      }
+    );
 
     return () => unsubscribe();
   }, []);
@@ -83,9 +87,13 @@ VITE_FIREBASE_STORAGE_BUCKET=...
       setIsLoading(true);
       const url = await uploadFileToStorage(file, 'maps');
       await updateMapBackgroundInDb(url);
-    } catch (e) {
+    } catch (e: any) {
       console.error(e);
-      alert("Ошибка загрузки карты. Проверьте настройки Firebase Storage и Rules.");
+      if (e?.code === 'storage/unauthorized') {
+        alert("Ошибка доступа к хранилищу. Проверьте вкладку Rules в Firebase Storage.");
+      } else {
+        alert("Ошибка загрузки карты.");
+      }
     } finally {
       setIsLoading(false);
     }
@@ -147,6 +155,49 @@ VITE_FIREBASE_STORAGE_BUCKET=...
     setSidebarOpen(false);
     setPendingCoords(null);
   };
+
+  if (permissionError) {
+    return (
+      <div className="w-full h-screen bg-rpg-dark flex items-center justify-center p-4">
+        <div className="max-w-2xl bg-rpg-panel border-2 border-rpg-accent p-8 rounded-lg shadow-2xl text-center">
+          <h1 className="text-2xl font-display text-rpg-accent mb-4">Ошибка Доступа (Permissions Error)</h1>
+          <p className="text-rpg-text mb-6">
+            База данных заблокирована. Вам нужно разрешить доступ в настройках Firebase.
+          </p>
+          
+          <div className="text-left space-y-4 text-sm text-rpg-muted">
+             <p>1. Перейдите в <a href="https://console.firebase.google.com/" target="_blank" className="text-blue-400 underline">Firebase Console</a> -> <b>Firestore Database</b> -> <b>Rules</b>.</p>
+             <p>2. Замените код правил на этот (разрешает чтение/запись всем):</p>
+             <pre className="bg-black/50 p-3 rounded text-green-400 font-mono text-xs overflow-x-auto">
+{`rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /{document=**} {
+      allow read, write: if true;
+    }
+  }
+}`}
+             </pre>
+             <p>3. Нажмите <b>Publish</b>.</p>
+             <p>4. Сделайте то же самое для <b>Storage</b> -> <b>Rules</b>:</p>
+             <pre className="bg-black/50 p-3 rounded text-green-400 font-mono text-xs overflow-x-auto">
+{`rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    match /{allPaths=**} {
+      allow read, write: if true;
+    }
+  }
+}`}
+             </pre>
+          </div>
+          <button onClick={() => window.location.reload()} className="mt-8 bg-rpg-accent text-black font-bold py-2 px-6 rounded hover:bg-amber-600">
+            Я исправил, обновить страницу
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   if (isLoading) {
     return (

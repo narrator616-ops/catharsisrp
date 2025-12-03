@@ -1,12 +1,12 @@
 import { GoogleGenAI } from "@google/genai";
 
 export const generateLocationLore = async (locationName: string, locationType: string): Promise<string> => {
-  // The API key must be obtained exclusively from the environment variable process.env.API_KEY
-  const apiKey = process.env.API_KEY;
+  // Access Vite env variable safely
+  const apiKey = import.meta.env ? import.meta.env.VITE_API_KEY : undefined;
   
   if (!apiKey) {
-    console.warn("API Key missing");
-    return "API ключ не найден. Пожалуйста, настройте .env файл.";
+    console.warn("API Key missing (VITE_API_KEY)");
+    return "API ключ не найден. Пожалуйста, проверьте файл .env и убедитесь, что ключ называется VITE_API_KEY.";
   }
 
   const ai = new GoogleGenAI({ apiKey });

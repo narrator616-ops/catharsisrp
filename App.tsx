@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import MapView from './components/MapView';
 import AdminPanel from './components/AdminPanel';
@@ -166,7 +167,7 @@ const App: React.FC = () => {
           </p>
           
           <div className="text-left space-y-4 text-sm text-rpg-muted">
-             <p>1. Перейдите в <a href="https://console.firebase.google.com/" target="_blank" className="text-blue-400 underline">Firebase Console</a> -> <b>Firestore Database</b> -> <b>Rules</b>.</p>
+             <p>1. Перейдите в <a href="https://console.firebase.google.com/" target="_blank" className="text-blue-400 underline">Firebase Console</a> &rarr; <b>Firestore Database</b> &rarr; <b>Rules</b>.</p>
              <p>2. Замените код правил на этот (разрешает чтение/запись всем):</p>
              <pre className="bg-black/50 p-3 rounded text-green-400 font-mono text-xs overflow-x-auto">
 {`rules_version = '2';
@@ -179,7 +180,7 @@ service cloud.firestore {
 }`}
              </pre>
              <p>3. Нажмите <b>Publish</b>.</p>
-             <p>4. Сделайте то же самое для <b>Storage</b> -> <b>Rules</b>:</p>
+             <p>4. Сделайте то же самое для <b>Storage</b> &rarr; <b>Rules</b>:</p>
              <pre className="bg-black/50 p-3 rounded text-green-400 font-mono text-xs overflow-x-auto">
 {`rules_version = '2';
 service firebase.storage {

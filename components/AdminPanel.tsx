@@ -1,7 +1,7 @@
+
 import React, { useState } from 'react';
 import { Button, Input, TextArea, Icons } from './UI';
 import { LocationMarker } from '../types';
-import { generateLocationLore } from '../services/geminiService';
 
 interface AdminPanelProps {
   isOpen: boolean;
@@ -30,7 +30,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
   const [imageUrl, setImageUrl] = useState('');
   const [markerImageUrl, setMarkerImageUrl] = useState('');
   
-  const [isGenerating, setIsGenerating] = useState(false);
   const [isUploadingToken, setIsUploadingToken] = useState(false);
   const [isUploadingImage, setIsUploadingImage] = useState(false);
 
@@ -68,17 +67,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
          setIsUploadingImage(false);
        }
     }
-  };
-
-  const handleGenerateLore = async () => {
-    if (!name) {
-      alert("Сначала введите название локации!");
-      return;
-    }
-    setIsGenerating(true);
-    const lore = await generateLocationLore(name, type);
-    setDesc(lore);
-    setIsGenerating(false);
   };
 
   const handleSubmit = () => {
@@ -168,13 +156,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                   onChange={e => setDesc(e.target.value)} 
                   label="Описание"
                />
-               <button 
-                  onClick={handleGenerateLore}
-                  disabled={isGenerating}
-                  className="absolute top-0 right-0 text-xs text-rpg-accent hover:text-white flex items-center gap-1 mt-1"
-               >
-                 <Icons.Sparkles /> {isGenerating ? 'Думаю...' : 'AI Описание'}
-               </button>
              </div>
 
              {/* Marker Image Upload */}

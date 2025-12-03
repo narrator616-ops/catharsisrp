@@ -1,5 +1,5 @@
 {
   "name": "RPG World Map Manager",
-  "description": "Interactive RPG map application allowing users to upload a custom map, place markers with lore descriptions, and manage content via a mobile-first interface. Supports persistent data storage and AI-assisted descriptions.",
+  "description": "Interactive RPG map application allowing users to upload a custom map, place markers with lore descriptions, and manage content via a mobile-first interface. Supports persistent data storage.",
   "requestFramePermissions": []
 }

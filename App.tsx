@@ -1,18 +1,24 @@
-
 import React, { useState, useEffect } from 'react';
 import MapView from './components/MapView';
 import AdminPanel from './components/AdminPanel';
 import LocationModal from './components/LocationModal';
 import LoginModal from './components/LoginModal';
 import { Icons } from './components/UI';
-import { loadMapData, saveMapData } from './services/storage';
+import { 
+  subscribeToMapData, 
+  addMarkerToDb, 
+  removeMarkerFromDb, 
+  updateMapBackgroundInDb, 
+  uploadFileToStorage 
+} from './services/storage';
 import { MapData, LocationMarker } from './types';
 
-// Simple UUID polyfill since we can't easily npm install uuid in this context without specific instruction
+// Simple UUID generator
 const generateId = () => Math.random().toString(36).substr(2, 9) + Date.now().toString(36);
 
 const App: React.FC = () => {
   const [mapData, setMapData] = useState<MapData>({ backgroundImage: null, markers: [] });
+  const [isLoading, setIsLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
   const [selectedMarker, setSelectedMarker] = useState<LocationMarker | null>(null);
   const [isSidebarOpen, setSidebarOpen] = useState(false);
@@ -21,18 +27,15 @@ const App: React.FC = () => {
   // Login Modal State
   const [isLoginModalOpen, setLoginModalOpen] = useState(false);
 
-  // Load data on mount
+  // Subscribe to Firebase Data
   useEffect(() => {
-    const data = loadMapData();
-    if (data) setMapData(data);
-  }, []);
+    const unsubscribe = subscribeToMapData((data) => {
+      setMapData(data);
+      setIsLoading(false);
+    });
 
-  // Save data on change
-  useEffect(() => {
-    if (mapData.backgroundImage) {
-      saveMapData(mapData);
-    }
-  }, [mapData]);
+    return () => unsubscribe();
+  }, []);
 
   const handleMarkerClick = (marker: LocationMarker) => {
     setPendingCoords(null);
@@ -46,44 +49,58 @@ const App: React.FC = () => {
     }
   };
 
-  const handleUploadMap = (file: File) => {
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      if (e.target?.result) {
-        setMapData(prev => ({ ...prev, backgroundImage: e.target!.result as string }));
-      }
-    };
-    reader.readAsDataURL(file);
+  const handleUploadMap = async (file: File) => {
+    if (!isAdmin) return;
+    try {
+      setIsLoading(true);
+      const url = await uploadFileToStorage(file, 'maps');
+      await updateMapBackgroundInDb(url);
+    } catch (e) {
+      alert("Ошибка загрузки карты. Проверьте настройки Firebase.");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const handleSaveLocation = (markerData: Omit<LocationMarker, 'id'>) => {
+  const handleSaveLocation = async (markerData: Omit<LocationMarker, 'id'>) => {
+    if (!isAdmin) return;
+    
+    // Optimistic UI update could be done here, but we'll rely on the subscription
     const newMarker: LocationMarker = {
       ...markerData,
       id: generateId()
     };
-    setMapData(prev => ({
-      ...prev,
-      markers: [...prev.markers, newMarker]
-    }));
-    setPendingCoords(null);
+
+    try {
+      await addMarkerToDb(newMarker);
+      setPendingCoords(null);
+    } catch (e) {
+      console.error(e);
+      alert("Ошибка сохранения метки.");
+    }
   };
 
-  const handleDeleteLocation = (id: string) => {
+  const handleDeleteLocation = async (id: string) => {
+    if (!isAdmin) return;
     if (window.confirm("Вы уверены, что хотите удалить эту локацию?")) {
-      setMapData(prev => ({
-        ...prev,
-        markers: prev.markers.filter(m => m.id !== id)
-      }));
-      setSelectedMarker(null);
+      try {
+        await removeMarkerFromDb(id);
+        setSelectedMarker(null);
+      } catch (e) {
+        alert("Ошибка удаления.");
+      }
     }
+  };
+
+  // Helper passed to AdminPanel to handle image uploads to cloud
+  const handleImageUpload = async (file: File, folder: string): Promise<string> => {
+    return await uploadFileToStorage(file, folder);
   };
 
   const handleAdminToggle = () => {
     if (isAdmin) {
-      // If already admin, just toggle the sidebar visibility
       setSidebarOpen(!isSidebarOpen);
     } else {
-      // Open custom login modal
       setLoginModalOpen(true);
     }
   };
@@ -94,7 +111,6 @@ const App: React.FC = () => {
       setSidebarOpen(true);
       setLoginModalOpen(false);
     } else {
-      // Simple error handling: alert for now, or we could pass error state down to modal if we lifted state up more
       alert("Неверный пароль!"); 
     }
   };
@@ -104,6 +120,15 @@ const App: React.FC = () => {
     setSidebarOpen(false);
     setPendingCoords(null);
   };
+
+  if (isLoading) {
+    return (
+      <div className="w-full h-screen bg-rpg-dark flex items-center justify-center flex-col gap-4">
+        <div className="w-12 h-12 border-4 border-rpg-accent border-t-transparent rounded-full animate-spin"></div>
+        <p className="text-rpg-accent font-display animate-pulse">Загрузка мира...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="relative w-full h-screen bg-rpg-dark overflow-hidden flex flex-col md:flex-row">
@@ -139,6 +164,7 @@ const App: React.FC = () => {
         onClose={() => setSidebarOpen(false)}
         onLogout={handleLogout}
         onUploadMap={handleUploadMap}
+        onUploadImage={handleImageUpload} 
         pendingCoordinates={pendingCoords}
         onSaveLocation={handleSaveLocation}
         onCancelLocation={() => setPendingCoords(null)}

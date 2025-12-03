@@ -40,15 +40,17 @@ interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
   label?: string;
 }
 
-export const Input: React.FC<InputProps> = ({ label, className = '', ...props }) => (
+export const Input = React.forwardRef<HTMLInputElement, InputProps>(({ label, className = '', ...props }, ref) => (
   <div className="flex flex-col gap-1 w-full">
     {label && <label className="text-rpg-muted text-xs uppercase tracking-wider">{label}</label>}
     <input 
+      ref={ref}
       className={`bg-black/30 border border-rpg-border rounded p-3 text-rpg-text focus:border-rpg-accent focus:outline-none transition-colors placeholder-white/20 ${className}`}
       {...props}
     />
   </div>
-);
+));
+Input.displayName = 'Input';
 
 export const TextArea: React.FC<React.TextareaHTMLAttributes<HTMLTextAreaElement> & { label?: string }> = ({ label, className = '', ...props }) => (
   <div className="flex flex-col gap-1 w-full">

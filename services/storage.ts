@@ -1,25 +1,69 @@
-import { MapData, STORAGE_KEY } from '../types';
+import { db, storage } from './firebase';
+import { doc, onSnapshot, setDoc, updateDoc, arrayUnion, arrayRemove, getDoc } from 'firebase/firestore';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { MapData, LocationMarker } from '../types';
 
-const DEFAULT_DATA: MapData = {
-  backgroundImage: null,
-  markers: []
+const MAP_DOC_ID = 'main_rpg_map';
+const COLLECTION_NAME = 'maps';
+
+// -- Database Operations --
+
+// Subscribe to real-time updates
+export const subscribeToMapData = (callback: (data: MapData) => void) => {
+  const docRef = doc(db, COLLECTION_NAME, MAP_DOC_ID);
+  
+  return onSnapshot(docRef, (docSnap) => {
+    if (docSnap.exists()) {
+      callback(docSnap.data() as MapData);
+    } else {
+      // Create initial document if it doesn't exist
+      const initialData: MapData = { backgroundImage: null, markers: [] };
+      setDoc(docRef, initialData);
+      callback(initialData);
+    }
+  }, (error) => {
+    console.error("Error fetching map data:", error);
+  });
 };
 
-export const loadMapData = (): MapData => {
-  try {
-    const data = localStorage.getItem(STORAGE_KEY);
-    return data ? JSON.parse(data) : DEFAULT_DATA;
-  } catch (error) {
-    console.error("Failed to load map data", error);
-    return DEFAULT_DATA;
+// Add a new marker
+export const addMarkerToDb = async (marker: LocationMarker) => {
+  const docRef = doc(db, COLLECTION_NAME, MAP_DOC_ID);
+  await updateDoc(docRef, {
+    markers: arrayUnion(marker)
+  });
+};
+
+// Remove a marker
+export const removeMarkerFromDb = async (markerId: string) => {
+  const docRef = doc(db, COLLECTION_NAME, MAP_DOC_ID);
+  // Firestore arrayRemove requires the exact object value, which is hard to track.
+  // Instead, we read, filter, and write back. Safe for low concurrency.
+  const snap = await getDoc(docRef);
+  if (snap.exists()) {
+    const data = snap.data() as MapData;
+    const updatedMarkers = data.markers.filter(m => m.id !== markerId);
+    await updateDoc(docRef, { markers: updatedMarkers });
   }
 };
 
-export const saveMapData = (data: MapData): void => {
+// Update background map
+export const updateMapBackgroundInDb = async (url: string) => {
+  const docRef = doc(db, COLLECTION_NAME, MAP_DOC_ID);
+  await setDoc(docRef, { backgroundImage: url }, { merge: true });
+};
+
+// -- Storage Operations --
+
+// Upload a file to Firebase Storage and return the URL
+export const uploadFileToStorage = async (file: File, path: string): Promise<string> => {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+    const storageRef = ref(storage, `${path}/${Date.now()}_${file.name}`);
+    const snapshot = await uploadBytes(storageRef, file);
+    const downloadURL = await getDownloadURL(snapshot.ref);
+    return downloadURL;
   } catch (error) {
-    console.error("Failed to save map data (likely quota exceeded for image)", error);
-    alert("Ошибка сохранения: Возможно, изображение слишком большое. Попробуйте файл меньшего размера.");
+    console.error("Error uploading file:", error);
+    throw error;
   }
 };

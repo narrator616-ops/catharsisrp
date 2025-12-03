@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Button, Input, TextArea, Icons } from './UI';
 import { LocationMarker } from '../types';
@@ -9,6 +8,7 @@ interface AdminPanelProps {
   onClose: () => void;
   onLogout: () => void;
   onUploadMap: (file: File) => void;
+  onUploadImage: (file: File, folder: string) => Promise<string>;
   pendingCoordinates: { x: number; y: number } | null;
   onSaveLocation: (marker: Omit<LocationMarker, 'id'>) => void;
   onCancelLocation: () => void;
@@ -18,7 +18,8 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
   isOpen, 
   onClose, 
   onLogout,
-  onUploadMap, 
+  onUploadMap,
+  onUploadImage,
   pendingCoordinates,
   onSaveLocation,
   onCancelLocation
@@ -28,7 +29,10 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
   const [type, setType] = useState<LocationMarker['type']>('landmark');
   const [imageUrl, setImageUrl] = useState('');
   const [markerImageUrl, setMarkerImageUrl] = useState('');
+  
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isUploadingToken, setIsUploadingToken] = useState(false);
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
 
   // File handler for map background
   const handleMapFile = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -37,14 +41,32 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
     }
   };
 
-  // Helper for image uploads
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>, setter: (val: string) => void) => {
+  // Helper for image uploads to Cloud
+  const handleTokenUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
-       const reader = new FileReader();
-       reader.onloadend = () => {
-         setter(reader.result as string);
-       };
-       reader.readAsDataURL(e.target.files[0]);
+       setIsUploadingToken(true);
+       try {
+         const url = await onUploadImage(e.target.files[0], 'tokens');
+         setMarkerImageUrl(url);
+       } catch (err) {
+         alert("Ошибка загрузки токена");
+       } finally {
+         setIsUploadingToken(false);
+       }
+    }
+  };
+
+  const handleContentImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+       setIsUploadingImage(true);
+       try {
+         const url = await onUploadImage(e.target.files[0], 'locations');
+         setImageUrl(url);
+       } catch (err) {
+         alert("Ошибка загрузки фото");
+       } finally {
+         setIsUploadingImage(false);
+       }
     }
   };
 
@@ -159,8 +181,10 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
              <div className="space-y-1">
                 <label className="text-rpg-muted text-xs uppercase tracking-wider">Фото Маркера (Круглое)</label>
                 <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-full border border-rpg-border overflow-hidden bg-black/50 shrink-0">
-                    {markerImageUrl ? (
+                  <div className="w-12 h-12 rounded-full border border-rpg-border overflow-hidden bg-black/50 shrink-0 relative">
+                    {isUploadingToken ? (
+                      <div className="absolute inset-0 flex items-center justify-center bg-black/50"><div className="w-4 h-4 border-2 border-rpg-accent border-t-transparent rounded-full animate-spin"></div></div>
+                    ) : markerImageUrl ? (
                       <img src={markerImageUrl} alt="Preview" className="w-full h-full object-cover" />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center text-xs text-rpg-muted">?</div>
@@ -169,7 +193,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                   <input 
                     type="file" 
                     accept="image/*" 
-                    onChange={(e) => handleImageUpload(e, setMarkerImageUrl)} 
+                    onChange={handleTokenUpload} 
                     className="text-xs text-rpg-muted file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-rpg-panel file:text-rpg-text hover:file:bg-rpg-accent hover:file:text-black w-full"
                   />
                 </div>
@@ -178,16 +202,21 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
              {/* Main Image Upload */}
              <div className="space-y-1">
                 <label className="text-rpg-muted text-xs uppercase tracking-wider">Фото Внутри (Контент)</label>
-                <input 
-                  type="file" 
-                  accept="image/*" 
-                  onChange={(e) => handleImageUpload(e, setImageUrl)} 
-                  className="text-xs text-rpg-muted file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-rpg-panel file:text-rpg-text hover:file:bg-rpg-accent hover:file:text-black w-full"
-                />
+                 <div className="relative">
+                    {isUploadingImage && (
+                        <div className="absolute -top-6 right-0 text-xs text-rpg-accent animate-pulse">Загрузка...</div>
+                    )}
+                    <input 
+                      type="file" 
+                      accept="image/*" 
+                      onChange={handleContentImageUpload} 
+                      className="text-xs text-rpg-muted file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-rpg-panel file:text-rpg-text hover:file:bg-rpg-accent hover:file:text-black w-full"
+                    />
+                 </div>
              </div>
 
              <div className="flex gap-2 pt-2">
-               <Button onClick={handleSubmit} className="flex-1">Создать</Button>
+               <Button onClick={handleSubmit} disabled={isUploadingToken || isUploadingImage} className="flex-1">Создать</Button>
                <Button onClick={onCancelLocation} variant="secondary" className="px-2"><Icons.Trash /></Button>
              </div>
            </div>

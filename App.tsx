@@ -11,6 +11,7 @@ import {
   updateMapBackgroundInDb, 
   uploadFileToStorage 
 } from './services/storage';
+import { isFirebaseConfigured } from './services/firebase';
 import { MapData, LocationMarker } from './types';
 
 // Simple UUID generator
@@ -27,8 +28,35 @@ const App: React.FC = () => {
   // Login Modal State
   const [isLoginModalOpen, setLoginModalOpen] = useState(false);
 
+  // Check configuration
+  if (!isFirebaseConfigured) {
+    return (
+      <div className="w-full h-screen bg-rpg-dark flex items-center justify-center p-4">
+        <div className="max-w-xl bg-rpg-panel border-2 border-red-800 p-8 rounded-lg shadow-2xl text-center">
+          <div className="text-red-500 mb-4 flex justify-center"><Icons.Trash /></div>
+          <h1 className="text-2xl font-display text-red-400 mb-4">Configuration Missing</h1>
+          <p className="text-rpg-text mb-6">
+            The application cannot connect to the database because the API keys are missing.
+          </p>
+          <div className="bg-black/40 p-4 rounded text-left text-xs font-mono text-rpg-muted mb-6 overflow-x-auto">
+            <p className="mb-2 text-white">Create a file named <span className="text-yellow-400">.env</span> in the project root with your Firebase keys:</p>
+            <pre>
+VITE_FIREBASE_API_KEY=...
+VITE_FIREBASE_AUTH_DOMAIN=...
+VITE_FIREBASE_PROJECT_ID=...
+VITE_FIREBASE_STORAGE_BUCKET=...
+            </pre>
+          </div>
+          <p className="text-sm text-rpg-muted">Please check the console for exact missing keys.</p>
+        </div>
+      </div>
+    );
+  }
+
   // Subscribe to Firebase Data
   useEffect(() => {
+    if (!isFirebaseConfigured) return;
+
     const unsubscribe = subscribeToMapData((data) => {
       setMapData(data);
       setIsLoading(false);
@@ -56,7 +84,8 @@ const App: React.FC = () => {
       const url = await uploadFileToStorage(file, 'maps');
       await updateMapBackgroundInDb(url);
     } catch (e) {
-      alert("Ошибка загрузки карты. Проверьте настройки Firebase.");
+      console.error(e);
+      alert("Ошибка загрузки карты. Проверьте настройки Firebase Storage и Rules.");
     } finally {
       setIsLoading(false);
     }
@@ -65,7 +94,6 @@ const App: React.FC = () => {
   const handleSaveLocation = async (markerData: Omit<LocationMarker, 'id'>) => {
     if (!isAdmin) return;
     
-    // Optimistic UI update could be done here, but we'll rely on the subscription
     const newMarker: LocationMarker = {
       ...markerData,
       id: generateId()
@@ -92,7 +120,6 @@ const App: React.FC = () => {
     }
   };
 
-  // Helper passed to AdminPanel to handle image uploads to cloud
   const handleImageUpload = async (file: File, folder: string): Promise<string> => {
     return await uploadFileToStorage(file, folder);
   };

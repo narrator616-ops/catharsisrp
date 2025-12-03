@@ -2,7 +2,7 @@ import { initializeApp, FirebaseApp } from "firebase/app";
 import { getFirestore, Firestore } from "firebase/firestore";
 import { getStorage, FirebaseStorage } from "firebase/storage";
 
-// Helper to safely access environment variables in Vite
+// Helper to safely access environment variables in Vite if they exist
 const getEnv = (key: string): string => {
   if (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env[key]) {
     return String(import.meta.env[key]).trim();
@@ -11,13 +11,14 @@ const getEnv = (key: string): string => {
 };
 
 // Your web app's Firebase configuration
+// We prioritize the hardcoded keys since the user cannot use .env files easily in their environment.
 const firebaseConfig = {
-  apiKey: getEnv('AIzaSyCjKbZ7pfZwpaNzM_xx9pxN78NwyjRm39E'),
-  authDomain: getEnv('rpg-maps-feff3.firebaseapp.com'),
-  projectId: getEnv('rpg-maps-feff3'),
-  storageBucket: getEnv('rpg-maps-feff3.firebasestorage.app'),
-  messagingSenderId: getEnv('599751110918'),
-  appId: getEnv('1:599751110918:web:32c547665154bbbc79ee87')
+  apiKey: "AIzaSyCjKbZ7pfZwpaNzM_xx9pxN78NwyjRm39E",
+  authDomain: "rpg-maps-feff3.firebaseapp.com",
+  projectId: "rpg-maps-feff3",
+  storageBucket: "rpg-maps-feff3.firebasestorage.app",
+  messagingSenderId: "599751110918",
+  appId: "1:599751110918:web:32c547665154bbbc79ee87"
 };
 
 // Validate config

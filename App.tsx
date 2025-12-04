@@ -21,6 +21,7 @@ const generateId = () => Math.random().toString(36).substr(2, 9) + Date.now().to
 const App: React.FC = () => {
   const [mapData, setMapData] = useState<MapData>({ backgroundImage: null, markers: [] });
   const [isLoading, setIsLoading] = useState(true);
+  const [connectionError, setConnectionError] = useState(false);
   const [permissionError, setPermissionError] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   const [selectedMarker, setSelectedMarker] = useState<LocationMarker | null>(null);
@@ -52,22 +53,41 @@ const App: React.FC = () => {
   useEffect(() => {
     if (!isFirebaseConfigured) return;
 
+    // Таймер на случай, если база данных долго не отвечает (например, не создана)
+    const timeoutTimer = setTimeout(() => {
+      if (isLoading) {
+        setConnectionError(true);
+        setIsLoading(false);
+      }
+    }, 7000); // 7 секунд ожидание
+
     const unsubscribe = subscribeToMapData(
       (data) => {
         setMapData(data);
         setIsLoading(false);
+        setConnectionError(false);
         setPermissionError(false);
+        clearTimeout(timeoutTimer);
       },
       (error) => {
+        clearTimeout(timeoutTimer);
+        console.error("Firebase Error:", error);
         // Check for permission denied error
         if (error?.code === 'permission-denied' || error?.message?.includes('Missing or insufficient permissions')) {
           setPermissionError(true);
+          setIsLoading(false);
+        } else {
+          // Другие ошибки (например, не найдена БД)
+          setConnectionError(true);
           setIsLoading(false);
         }
       }
     );
 
-    return () => unsubscribe();
+    return () => {
+      unsubscribe();
+      clearTimeout(timeoutTimer);
+    };
   }, []);
 
   const handleMarkerClick = (marker: LocationMarker) => {
@@ -157,18 +177,18 @@ const App: React.FC = () => {
     setPendingCoords(null);
   };
 
+  // Экран ошибки прав доступа
   if (permissionError) {
     return (
       <div className="w-full h-screen bg-rpg-dark flex items-center justify-center p-4">
         <div className="max-w-2xl bg-rpg-panel border-2 border-rpg-accent p-8 rounded-lg shadow-2xl text-center">
-          <h1 className="text-2xl font-display text-rpg-accent mb-4">Ошибка Доступа (Permissions Error)</h1>
+          <h1 className="text-2xl font-display text-rpg-accent mb-4">Ошибка Доступа</h1>
           <p className="text-rpg-text mb-6">
-            База данных заблокирована. Вам нужно разрешить доступ в настройках Firebase.
+            База данных заблокирована настройками приватности.
           </p>
-          
           <div className="text-left space-y-4 text-sm text-rpg-muted">
              <p>1. Перейдите в <a href="https://console.firebase.google.com/" target="_blank" className="text-blue-400 underline">Firebase Console</a> → <b>Firestore Database</b> → <b>Rules</b>.</p>
-             <p>2. Замените код правил на этот (разрешает чтение/запись всем):</p>
+             <p>2. Вставьте этот код (разрешает доступ всем):</p>
              <pre className="bg-black/50 p-3 rounded text-green-400 font-mono text-xs overflow-x-auto">
 {`rules_version = '2';
 service cloud.firestore {
@@ -180,20 +200,44 @@ service cloud.firestore {
 }`}
              </pre>
              <p>3. Нажмите <b>Publish</b>.</p>
-             <p>4. Сделайте то же самое для <b>Storage</b> → <b>Rules</b>:</p>
-             <pre className="bg-black/50 p-3 rounded text-green-400 font-mono text-xs overflow-x-auto">
-{`rules_version = '2';
-service firebase.storage {
-  match /b/{bucket}/o {
-    match /{allPaths=**} {
-      allow read, write: if true;
-    }
-  }
-}`}
-             </pre>
           </div>
           <button onClick={() => window.location.reload()} className="mt-8 bg-rpg-accent text-black font-bold py-2 px-6 rounded hover:bg-amber-600">
-            Я исправил, обновить страницу
+            Готово, обновить
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // Экран ошибки подключения (Тайм-аут)
+  if (connectionError) {
+    return (
+      <div className="w-full h-screen bg-rpg-dark flex items-center justify-center p-4">
+        <div className="max-w-xl bg-rpg-panel border-2 border-red-800 p-8 rounded-lg shadow-2xl text-center">
+          <div className="text-red-500 mb-4 flex justify-center text-4xl">⚠️</div>
+          <h1 className="text-2xl font-display text-white mb-4">Ошибка Подключения</h1>
+          <p className="text-rpg-text mb-6">
+            Сайт не может получить данные от Firebase. 
+            <br/><span className="text-rpg-muted text-sm">Время ожидания истекло (7с).</span>
+          </p>
+          
+          <div className="bg-black/30 p-4 rounded text-left text-sm text-rpg-muted border border-rpg-border">
+            <p className="font-bold text-white mb-2">Возможные причины:</p>
+            <ul className="list-disc pl-5 space-y-2">
+              <li>
+                <b>База данных не создана:</b> Зайдите в Firebase Console → раздел <b>Firestore Database</b> и нажмите кнопку "Create Database".
+              </li>
+              <li>
+                <b>Неверные ключи:</b> Проверьте файл <code>services/firebase.ts</code>. Убедитесь, что Project ID совпадает с вашим проектом.
+              </li>
+              <li>
+                <b>Плохой интернет:</b> Проверьте соединение.
+              </li>
+            </ul>
+          </div>
+
+          <button onClick={() => window.location.reload()} className="mt-6 bg-rpg-panel border border-rpg-border text-white py-2 px-6 rounded hover:bg-rpg-accent hover:text-black transition-colors">
+            Попробовать снова
           </button>
         </div>
       </div>

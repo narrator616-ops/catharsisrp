@@ -1,10 +1,43 @@
 import { db, storage } from './firebase';
 import { doc, onSnapshot, setDoc, updateDoc, arrayUnion, getDoc, Firestore } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL, FirebaseStorage } from 'firebase/storage';
-import { MapData, LocationMarker } from '../types';
+import { MapData, LocationMarker, STORAGE_KEY } from '../types';
 
 const MAP_DOC_ID = 'main_rpg_map';
 const COLLECTION_NAME = 'maps';
+
+// -- Local Storage Operations (Offline Mode) --
+
+export const getMapFromLocalStorage = (): MapData => {
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    if (stored) {
+      return JSON.parse(stored) as MapData;
+    }
+  } catch (e) {
+    console.error("Failed to parse local storage", e);
+  }
+  return { backgroundImage: null, markers: [] };
+};
+
+export const saveMapToLocalStorage = (data: MapData) => {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+  } catch (e) {
+    console.error("Failed to save to local storage", e);
+    alert("Ошибка сохранения: возможно, файл слишком большой для локального хранилища.");
+  }
+};
+
+export const fileToDataUrl = (file: File): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => resolve(e.target?.result as string);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+};
+
 
 // -- Database Operations --
 

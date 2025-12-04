@@ -52,7 +52,7 @@
         scrollbar-width: none;
       }
     </style>
-  <script type="importmap">
+<script type="importmap">
 {
   "imports": {
     "react": "https://aistudiocdn.com/react@^19.2.1",
@@ -68,7 +68,7 @@
   <body class="bg-rpg-dark text-rpg-text font-serif overflow-hidden overscroll-none">
     <div id="root">
        <div style="height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; color: #d97706; font-family: serif; background-color: #1c1917;">
-         <div style="width: 40px; height: 40px; border: 4px solid #d97706; border-top-color: transparent; border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 20px;"></div>
+         <div id="loading-spinner" style="width: 40px; height: 40px; border: 4px solid #d97706; border-top-color: transparent; border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 20px;"></div>
          <div id="loading-text">Загрузка приложения...</div>
          <style>
             @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
@@ -76,22 +76,42 @@
        </div>
     </div>
     
-    <!-- Global Error Handler: Shows startup errors on screen -->
+    <!-- Global Error Handler & Startup Diagnostic -->
     <script>
+      // 1. Catch script errors immediately
       window.addEventListener('error', function(event) {
-        const root = document.getElementById('root');
         const text = document.getElementById('loading-text');
         if (text) {
-           text.innerHTML = 'Ошибка запуска!<br><span style="font-size:12px; color:#ef4444">' + event.message + '</span>';
-           text.style.textAlign = 'center';
-           // Stop spinner
-           const spinner = text.previousElementSibling;
-           if(spinner) spinner.style.animation = 'none';
+           // Don't overwrite if it's a minor error, but if it prevents load (root is still empty)
+           console.error("Critical Startup Error:", event);
         }
-        console.error("Global Startup Error:", event.error);
       });
+
+      // 2. Safety Timeout: Checks if React mounted within 4 seconds
+      // If the #loading-text element still exists, React failed to replace #root content.
+      setTimeout(function() {
+        const loadingText = document.getElementById('loading-text');
+        
+        if (loadingText) {
+           loadingText.innerHTML = 
+             '<div style="max-width:320px; text-align:center; line-height:1.5;">' +
+             '<strong style="color:#ef4444; font-size:1.2em; font-family:sans-serif;">Приложение не запускается</strong><br><br>' +
+             '<div style="text-align:left; font-size:0.9em; background:rgba(0,0,0,0.3); padding:15px; border-radius:8px; border:1px solid #78716c; color: #e7e5e4;">' +
+             '<strong>Вероятная причина:</strong><br>' +
+             'Браузер не может выполнить файл <code>.tsx</code>.<br><br>' +
+             '<strong>Решение:</strong><br>' +
+             '1. Не открывайте index.html напрямую.<br>' + 
+             '2. Запустите в терминале:<br>' +
+             '<code style="background:#000; padding:4px 8px; border-radius:4px; color:#d97706; display:block; margin:8px 0;">npm run dev</code>' +
+             '</div>' +
+             '</div>';
+           
+           const spinner = document.getElementById('loading-spinner');
+           if(spinner) spinner.style.display = 'none';
+        }
+      }, 4000);
     </script>
 
-    <script type="module" src="./index.tsx"></script>
+    <script type="module" src="/index.tsx"></script>
   </body>
 </html>

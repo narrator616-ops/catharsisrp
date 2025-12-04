@@ -55,12 +55,12 @@
   <script type="importmap">
 {
   "imports": {
-    "react/": "https://aistudiocdn.com/react@^19.2.1/",
     "react": "https://aistudiocdn.com/react@^19.2.1",
     "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.1/",
+    "react/": "https://aistudiocdn.com/react@^19.2.1/",
+    "firebase/": "https://aistudiocdn.com/firebase@^12.6.0/",
     "vite": "https://aistudiocdn.com/vite@^7.2.6",
-    "@vitejs/plugin-react": "https://aistudiocdn.com/@vitejs/plugin-react@^5.1.1",
-    "firebase/": "https://aistudiocdn.com/firebase@^12.6.0/"
+    "@vitejs/plugin-react": "https://aistudiocdn.com/@vitejs/plugin-react@^5.1.1"
   }
 }
 </script>
@@ -84,6 +84,9 @@
         if (text) {
            text.innerHTML = 'Ошибка запуска!<br><span style="font-size:12px; color:#ef4444">' + event.message + '</span>';
            text.style.textAlign = 'center';
+           // Stop spinner
+           const spinner = text.previousElementSibling;
+           if(spinner) spinner.style.animation = 'none';
         }
         console.error("Global Startup Error:", event.error);
       });

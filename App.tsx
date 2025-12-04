@@ -50,12 +50,13 @@ const App: React.FC = () => {
 
   // Subscribe to Firebase Data
   useEffect(() => {
+    console.log("App mounted, initializing Firebase subscription...");
     let isMounted = true;
     let unsubscribe: () => void = () => {};
 
     if (!isFirebaseConfigured) return;
 
-    // Таймер безопасности: если данные не пришли через 5 секунд, показываем ошибку
+    // Таймер безопасности: если данные не пришли через 4 секунды, показываем ошибку
     const timeoutTimer = setTimeout(() => {
       if (isMounted) {
         setIsLoading((prevLoading) => {
@@ -67,12 +68,13 @@ const App: React.FC = () => {
           return prevLoading;
         });
       }
-    }, 5000);
+    }, 4000);
 
     try {
       unsubscribe = subscribeToMapData(
         (data) => {
           if (!isMounted) return;
+          console.log("Data received from Firebase");
           clearTimeout(timeoutTimer); // Отменяем таймер ошибки при успехе
           setMapData(data);
           setIsLoading(false);
@@ -244,10 +246,10 @@ service cloud.firestore {
                 <b>База данных не создана:</b> Зайдите в Firebase Console → раздел <b>Firestore Database</b> и нажмите кнопку "Create Database".
               </li>
               <li>
-                <b>Неверные ключи:</b> Проверьте файл <code>services/firebase.ts</code>.
+                <b>Правила доступа:</b> Убедитесь, что Rules в Firestore разрешают чтение.
               </li>
               <li>
-                <b>Сетевой экран/VPN:</b> Некоторые сети блокируют Firebase.
+                <b>Сетевой экран/VPN:</b> Попробуйте отключить VPN.
               </li>
             </ul>
           </div>
@@ -265,6 +267,7 @@ service cloud.firestore {
       <div className="w-full h-screen bg-rpg-dark flex items-center justify-center flex-col gap-4">
         <div className="w-12 h-12 border-4 border-rpg-accent border-t-transparent rounded-full animate-spin"></div>
         <p className="text-rpg-accent font-display animate-pulse">Загрузка мира...</p>
+        <p className="text-xs text-rpg-muted">Ожидание ответа от базы данных...</p>
       </div>
     );
   }

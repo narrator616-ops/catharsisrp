@@ -4,8 +4,8 @@ import react from '@vitejs/plugin-react';
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [react()],
-  // ВАЖНО: Замените 'rpg-world-map' на название вашего репозитория на GitHub!
-  base: '/catharsisrp/', 
+  // Use relative path to ensure assets load correctly in any environment (dev, preview, prod subdir)
+  base: './', 
   build: {
     chunkSizeWarningLimit: 1600,
   }

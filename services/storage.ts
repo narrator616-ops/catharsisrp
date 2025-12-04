@@ -10,8 +10,13 @@ const COLLECTION_NAME = 'maps';
 
 // Subscribe to real-time updates
 export const subscribeToMapData = (callback: (data: MapData) => void, onError?: (error: any) => void) => {
+  // Guard clause: If db failed to initialize (e.g. invalid config), return early error
+  if (!db) {
+    if (onError) onError(new Error("Database not initialized"));
+    return () => {}; // Return empty unsubscribe function
+  }
+
   // Cast db to Firestore to satisfy TypeScript. 
-  // App.tsx guarantees this is only called when config is valid.
   const docRef = doc(db as Firestore, COLLECTION_NAME, MAP_DOC_ID);
   
   return onSnapshot(docRef, (docSnap) => {
@@ -33,6 +38,7 @@ export const subscribeToMapData = (callback: (data: MapData) => void, onError?: 
 
 // Add a new marker
 export const addMarkerToDb = async (marker: LocationMarker) => {
+  if (!db) throw new Error("Database not initialized");
   const docRef = doc(db as Firestore, COLLECTION_NAME, MAP_DOC_ID);
   await updateDoc(docRef, {
     markers: arrayUnion(marker)
@@ -41,6 +47,7 @@ export const addMarkerToDb = async (marker: LocationMarker) => {
 
 // Remove a marker
 export const removeMarkerFromDb = async (markerId: string) => {
+  if (!db) throw new Error("Database not initialized");
   const docRef = doc(db as Firestore, COLLECTION_NAME, MAP_DOC_ID);
   // Firestore arrayRemove requires the exact object value, which is hard to track.
   // Instead, we read, filter, and write back. Safe for low concurrency.
@@ -54,6 +61,7 @@ export const removeMarkerFromDb = async (markerId: string) => {
 
 // Update background map
 export const updateMapBackgroundInDb = async (url: string) => {
+  if (!db) throw new Error("Database not initialized");
   const docRef = doc(db as Firestore, COLLECTION_NAME, MAP_DOC_ID);
   await setDoc(docRef, { backgroundImage: url }, { merge: true });
 };
@@ -62,6 +70,7 @@ export const updateMapBackgroundInDb = async (url: string) => {
 
 // Upload a file to Firebase Storage and return the URL
 export const uploadFileToStorage = async (file: File, path: string): Promise<string> => {
+  if (!storage) throw new Error("Storage not initialized");
   try {
     const storageRef = ref(storage as FirebaseStorage, `${path}/${Date.now()}_${file.name}`);
     const snapshot = await uploadBytes(storageRef, file);

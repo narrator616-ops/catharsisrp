@@ -1,5 +1,4 @@
-
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import MapView from './components/MapView';
 import AdminPanel from './components/AdminPanel';
 import LocationModal from './components/LocationModal';
@@ -51,42 +50,58 @@ const App: React.FC = () => {
 
   // Subscribe to Firebase Data
   useEffect(() => {
+    let isMounted = true;
+    let unsubscribe: () => void = () => {};
+
     if (!isFirebaseConfigured) return;
 
-    // Таймер на случай, если база данных долго не отвечает (например, не создана)
+    // Таймер безопасности: если данные не пришли через 7 секунд, показываем ошибку
     const timeoutTimer = setTimeout(() => {
-      if (isLoading) {
-        setConnectionError(true);
-        setIsLoading(false);
+      if (isMounted) {
+        setIsLoading((prevLoading) => {
+          if (prevLoading) {
+             setConnectionError(true);
+             return false;
+          }
+          return prevLoading;
+        });
       }
-    }, 7000); // 7 секунд ожидание
+    }, 7000);
 
-    const unsubscribe = subscribeToMapData(
-      (data) => {
-        setMapData(data);
-        setIsLoading(false);
-        setConnectionError(false);
-        setPermissionError(false);
-        clearTimeout(timeoutTimer);
-      },
-      (error) => {
-        clearTimeout(timeoutTimer);
-        console.error("Firebase Error:", error);
-        // Check for permission denied error
-        if (error?.code === 'permission-denied' || error?.message?.includes('Missing or insufficient permissions')) {
-          setPermissionError(true);
+    try {
+      unsubscribe = subscribeToMapData(
+        (data) => {
+          if (!isMounted) return;
+          clearTimeout(timeoutTimer); // Отменяем таймер ошибки при успехе
+          setMapData(data);
           setIsLoading(false);
-        } else {
-          // Другие ошибки (например, не найдена БД)
-          setConnectionError(true);
-          setIsLoading(false);
+          setConnectionError(false);
+          setPermissionError(false);
+        },
+        (error) => {
+          if (!isMounted) return;
+          clearTimeout(timeoutTimer);
+          console.error("Firebase Error:", error);
+          
+          if (error?.code === 'permission-denied' || error?.message?.includes('Missing or insufficient permissions')) {
+            setPermissionError(true);
+            setIsLoading(false);
+          } else {
+            setConnectionError(true);
+            setIsLoading(false);
+          }
         }
-      }
-    );
+      );
+    } catch (e) {
+      console.error("Subscription failed synchronous:", e);
+      setConnectionError(true);
+      setIsLoading(false);
+    }
 
     return () => {
-      unsubscribe();
+      isMounted = false;
       clearTimeout(timeoutTimer);
+      unsubscribe();
     };
   }, []);
 
@@ -187,7 +202,7 @@ const App: React.FC = () => {
             База данных заблокирована настройками приватности.
           </p>
           <div className="text-left space-y-4 text-sm text-rpg-muted">
-             <p>1. Перейдите в <a href="https://console.firebase.google.com/" target="_blank" className="text-blue-400 underline">Firebase Console</a> → <b>Firestore Database</b> → <b>Rules</b>.</p>
+             <p>1. Перейдите в <a href="https://console.firebase.google.com/" target="_blank" className="text-blue-400 underline" rel="noreferrer">Firebase Console</a> → <b>Firestore Database</b> → <b>Rules</b>.</p>
              <p>2. Вставьте этот код (разрешает доступ всем):</p>
              <pre className="bg-black/50 p-3 rounded text-green-400 font-mono text-xs overflow-x-auto">
 {`rules_version = '2';
@@ -218,7 +233,7 @@ service cloud.firestore {
           <h1 className="text-2xl font-display text-white mb-4">Ошибка Подключения</h1>
           <p className="text-rpg-text mb-6">
             Сайт не может получить данные от Firebase. 
-            <br/><span className="text-rpg-muted text-sm">Время ожидания истекло (7с).</span>
+            <br/><span className="text-rpg-muted text-sm">Время ожидания истекло.</span>
           </p>
           
           <div className="bg-black/30 p-4 rounded text-left text-sm text-rpg-muted border border-rpg-border">
@@ -228,7 +243,7 @@ service cloud.firestore {
                 <b>База данных не создана:</b> Зайдите в Firebase Console → раздел <b>Firestore Database</b> и нажмите кнопку "Create Database".
               </li>
               <li>
-                <b>Неверные ключи:</b> Проверьте файл <code>services/firebase.ts</code>. Убедитесь, что Project ID совпадает с вашим проектом.
+                <b>Неверные ключи:</b> Проверьте файл <code>services/firebase.ts</code>.
               </li>
               <li>
                 <b>Плохой интернет:</b> Проверьте соединение.

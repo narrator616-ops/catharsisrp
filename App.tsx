@@ -55,18 +55,19 @@ const App: React.FC = () => {
 
     if (!isFirebaseConfigured) return;
 
-    // Таймер безопасности: если данные не пришли через 7 секунд, показываем ошибку
+    // Таймер безопасности: если данные не пришли через 5 секунд, показываем ошибку
     const timeoutTimer = setTimeout(() => {
       if (isMounted) {
         setIsLoading((prevLoading) => {
           if (prevLoading) {
+             console.warn("Connection timeout reached. Showing error screen.");
              setConnectionError(true);
              return false;
           }
           return prevLoading;
         });
       }
-    }, 7000);
+    }, 5000);
 
     try {
       unsubscribe = subscribeToMapData(
@@ -81,7 +82,7 @@ const App: React.FC = () => {
         (error) => {
           if (!isMounted) return;
           clearTimeout(timeoutTimer);
-          console.error("Firebase Error:", error);
+          console.error("Firebase Error in App.tsx:", error);
           
           if (error?.code === 'permission-denied' || error?.message?.includes('Missing or insufficient permissions')) {
             setPermissionError(true);
@@ -246,7 +247,7 @@ service cloud.firestore {
                 <b>Неверные ключи:</b> Проверьте файл <code>services/firebase.ts</code>.
               </li>
               <li>
-                <b>Плохой интернет:</b> Проверьте соединение.
+                <b>Сетевой экран/VPN:</b> Некоторые сети блокируют Firebase.
               </li>
             </ul>
           </div>
